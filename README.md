@@ -15,3 +15,6 @@ An automated AI agent built with **n8n** and **Google Gemini** that audits month
 - **LLM:** Google Gemini
 - **Database & Reporting:** Google Sheets API
 - **Notifications:** Gmail OAuth2 API
+
+- <img width="1672" height="702" alt="image" src="https://github.com/user-attachments/assets/7cfc9399-4fc5-48ae-a051-6d28e61d6894" />
+
