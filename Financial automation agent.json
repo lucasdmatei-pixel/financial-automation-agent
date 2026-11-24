@@ -1,0 +1,393 @@
+{
+  "name": "Financial automation agent",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Auditeur FP&A - Analyse Mensuelle",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Fichier_PnL",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -304,
+        0
+      ],
+      "id": "8c0d8eed-beed-469c-881c-ec8d00a5140e",
+      "name": "On form submission",
+      "webhookId": "a78a84de-6815-4b34-98eb-34edfea51081"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# ROLE\nYou are a Senior FP&A (Financial Planning & Analysis) Controller and Strategic CFO Advisor.\nYour job is to audit monthly budget vs. actual financial data, detect variances or anomalies, and deliver actionable executive recommendations.\n\n# STRICT LANGUAGE & FORMATTING RULES\n1. Write EVERY single field, metric explanation, and recommendation strictly in ENGLISH (never in French, even if input column headers or prompts contain French).\n2. Always quantify variances in both dollar amounts ($) and percentages (%).\n3. Keep each field concise, executive-ready, and formatted as clean plain text (no markdown `**` bolding or raw JSON inside text values).\n4. Categorize the overall performance in `statut_global` clearly (e.g., \"Unfavorable (+7.6% Over Budget)\", \"Favorable (-3.2% Under Budget)\", or \"On Track\").\n\n# OUTPUT FIELDS TO POPULATE\n- `statut_global`: Short overall budget status with total variance %.\n- `resume_executif`: 2–3 sentences summarizing net budget performance and main drivers.\n- `anomalies_cles`: Concise bullet-style summary (separated by \" | \") of the biggest cost overruns, savings, or data anomalies.\n- `recommandations_cfo`: 2–3 concrete, prioritized corrective actions for the CFO with estimated financial impact.\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Audit the following monthly FP&A data and write all outputs strictly in English:\n{{ JSON.stringify($json) }}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6d3d2696-4191-40b3-880d-804dd94a005a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        208
+      ],
+      "id": "e8cd223e-9ffc-4b1b-a8fa-cd1fa7036fb2",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1JQhMINGCilzNNCU",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "93d1f83a-e891-4ab1-bf2f-f52a1c523afe",
+              "leftValue": "{{ $json.output.statut_global }}",
+              "rightValue": "CRITIQUE",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        800,
+        0
+      ],
+      "id": "dcb55433-a75f-46c6-9dff-a4c3d4c10104",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "lucas.d.matei@gmail.com",
+        "subject": "[ALERTE FP&A] Dépassement budgétaire détecté (>15%)",
+        "emailType": "text",
+        "message": "=Statut de clôture : {{ $json.output.statut_global }}\n\n1. RÉSUMÉ EXÉCUTIF :\n{{ $json.output.resume_executif }}\n\n2. ANOMALIES DÉTECTÉES :\n- {{ $json.output.anomalies_cles.join('\\n- ') }}\n\n3. RECOMMANDATIONS CFO :\n- {{ $json.output.recommandations_cfo.join('\\n- ') }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "cb14e476-c1c0-40e2-a2c9-b622afeddd8d",
+      "name": "Send a message",
+      "webhookId": "458f32f2-3251-462c-ac1c-09af90e46b21",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "aygWrBV3RFCIDdo9",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "lucas.d.matei@gmail.com",
+        "subject": "[RAPPORT FP&A] Clôture mensuelle conforme au budget",
+        "emailType": "text",
+        "message": "=Statut de clôture : {{ $json.output.statut_global }}\n\n1. RÉSUMÉ EXÉCUTIF :\n{{ $json.output.resume_executif }}\n\n2. ANOMALIES DÉTECTÉES :\n- {{ $json.output.anomalies_cles.join('\\n- ') }}\n\n3. RECOMMANDATIONS CFO :\n- {{ $json.output.recommandations_cfo.join('\\n- ') }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        96
+      ],
+      "id": "4833963b-7009-4352-9553-a7e5e2011840",
+      "name": "Send a message1",
+      "webhookId": "430ad93c-e263-4b45-9b76-cfe4308f4580",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "aygWrBV3RFCIDdo9",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "Fichier_PnL",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "8443a44d-c8cb-4f0a-973c-cb71d9afedf2",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet totalBudget = 0;\nlet totalRealise = 0;\nconst details = [];\n\nfor (const item of items) {\n  const cat = item.json.Categorie;\n  const budget = parseFloat(item.json.Budget);\n  const realise = parseFloat(item.json.Realise);\n  const ecartValeur = realise - budget;\n  const ecartPourcent = ((ecartValeur / budget) * 100).toFixed(2);\n\n  totalBudget += budget;\n  totalRealise += realise;\n\n  details.push({\n    categorie: cat,\n    budget: budget,\n    realise: realise,\n    ecart_dollars: ecartValeur,\n    ecart_pourcent: parseFloat(ecartPourcent),\n    alerte: Math.abs(parseFloat(ecartPourcent)) > 15 ? \"CRITIQUE\" : \"NORMAL\"\n  });\n}\n\n// Trier par plus gros écart en valeur absolue\ndetails.sort((a, b) => Math.abs(b.ecart_dollars) - Math.abs(a.ecart_dollars));\n\nreturn [{\n  json: {\n    synthese_globale: {\n      total_budget: totalBudget,\n      total_realise: totalRealise,\n      ecart_net_dollars: totalRealise - totalBudget\n    },\n    lignes_analysees: details\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -80
+      ],
+      "id": "4101e409-efdd-48c4-acee-f78255186bc9",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"statut_global\": \"Unfavorable (+7.6% Over Budget)\",\n  \"resume_executif\": \"The month closed with a net budget overrun of $16,200 (+7.6%), primarily driven by unplanned cloud infrastructure scaling and paid marketing spend.\",\n  \"anomalies_cles\": \"Cloud Hosting +$9,400 (+22%) due to unoptimized staging servers | Paid Ads +$6,800 (+14%) above approved cap\",\n  \"recommandations_cfo\": \"1. Enforce auto-shutdown on staging environments to save ~$4,500/mo. 2. Freeze discretionary ad spend above $45k until CAC stabilizes.\"\n}\n\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        240
+      ],
+      "id": "3d50a6d3-b204-4961-9310-2e5d54671660",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1E_bOvRWklXHD1ICcK22iPBEhoVa6-ZyIoAo_Tw2TX78/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1E_bOvRWklXHD1ICcK22iPBEhoVa6-ZyIoAo_Tw2TX78/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd HH:mm') }}",
+            "Statut": "={{ $('AI Agent').item.json.output.statut_global }}",
+            "Executive_Summary": "={{ $('AI Agent').item.json.output.resume_executif }}",
+            "Key_Anomalies": "={{ $('AI Agent').item.json.output.anomalies_cles }}",
+            "Recommandations_CFO": "={{ $('AI Agent').item.json.output.recommandations_cfo }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Statut",
+              "displayName": "Statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Executive_Summary",
+              "displayName": "Executive_Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Key_Anomalies",
+              "displayName": "Key_Anomalies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommandations_CFO",
+              "displayName": "Recommandations_CFO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        768,
+        -352
+      ],
+      "id": "68cb670d-8246-4e14-a06a-6e0beb1b073a",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Za0DDNzL280DjmWF",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "6bf76404-5b83-4726-8af6-54f7f8db7232",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5bb3b38dfecb1c3325d2060d44b089ed1c42467d45de1d458af8fa2adab53314"
+  },
+  "nodeGroups": [],
+  "id": "t9hyhHae61wsdUIC",
+  "tags": []
+}
